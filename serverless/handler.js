@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import { readFile } from 'node:fs/promises'
 
 const ADMIN_EMAIL = 'mansi.s0824@gmail.com'
 const SESSION_COOKIE = 'admin_session'
@@ -24,7 +23,7 @@ function githubHeaders() {
 }
 
 function repositoryConfig() {
-  const repository = requiredEnvironment('GITHUB_REPOSITORY')
+  const repository = process.env.GITHUB_REPOSITORY || 'Mohhit-Bishnoee/dental-react'
   if (!/^[\w.-]+\/[\w.-]+$/.test(repository)) throw new Error('GITHUB_REPOSITORY must be in owner/repository format.')
   return {
     repository,
@@ -220,9 +219,15 @@ function validContent(content) {
 }
 
 async function readCurrentContent() {
-  const file = await githubFile(CONTENT_PATH, repositoryConfig().branch)
-  if (file) return JSON.parse(file.content)
-  return JSON.parse(await readFile(new URL('../public/site-content.json', import.meta.url), 'utf8'))
+  const { repository, branch } = repositoryConfig()
+  const response = await fetch(
+    `https://raw.githubusercontent.com/${repository}/${encodeURIComponent(branch)}/${CONTENT_PATH}`,
+    { cache: 'no-store' },
+  )
+  if (!response.ok) {
+    throw new Error(`Public site content could not be loaded from GitHub (${response.status}).`)
+  }
+  return response.json()
 }
 
 function respond(res, status, body) {
@@ -346,6 +351,8 @@ export default async function handler(req, res) {
     return respond(res, 404, { error: 'API route not found.' })
   } catch (error) {
     console.error('Vercel API request failed:', error)
-    return respond(res, 500, { error: 'Server error. Check Vercel function logs and GitHub configuration.' })
+    return respond(res, 500, {
+      error: error instanceof Error ? error.message : 'Unknown server error.',
+    })
   }
 }

@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
 const adminEmail = 'mansi.s0824@gmail.com'
 const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase()
-const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD
+const initialAdminPassword = 'Mansi2006'
 const port = Number(process.env.PORT || 3001)
 const isProduction = process.env.NODE_ENV === 'production'
 const databasePath = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'site.sqlite')
