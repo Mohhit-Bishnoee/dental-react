@@ -45,6 +45,22 @@ export function saveSiteContent(content) {
   })
 }
 
+export async function uploadTeamImage(file) {
+  const binary = new Uint8Array(await file.arrayBuffer())
+  let binaryString = ''
+  for (let offset = 0; offset < binary.length; offset += 0x8000) {
+    binaryString += String.fromCharCode(...binary.subarray(offset, offset + 0x8000))
+  }
+  return request('/api/uploads', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: file.name,
+      type: file.type,
+      data: btoa(binaryString),
+    }),
+  })
+}
+
 export function subscribeSiteContent(onContent, onError) {
   let active = true
   let requestInFlight = false

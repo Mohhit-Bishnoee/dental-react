@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { parseUploadedImage } from './image.js'
 
 const ADMIN_EMAIL = 'mansi.s0824@gmail.com'
 const SESSION_COOKIE = 'admin_session'
@@ -46,7 +47,7 @@ async function githubFile(path, ref) {
   }
 }
 
-async function commitGithubFile(path, content, message, previousSha) {
+async function commitGithubFile(path, content, message, previousSha, encoding = 'utf8') {
   const { repository, branch } = repositoryConfig()
   const url = `https://api.github.com/repos/${repository}/contents/${path}`
   const response = await fetch(url, {
@@ -54,7 +55,7 @@ async function commitGithubFile(path, content, message, previousSha) {
     headers: githubHeaders(),
     body: JSON.stringify({
       message,
-      content: Buffer.from(content, 'utf8').toString('base64'),
+      content: encoding === 'base64' ? content : Buffer.from(content, 'utf8').toString('base64'),
       branch,
       ...(previousSha ? { sha: previousSha } : {}),
     }),
@@ -345,6 +346,28 @@ export default async function handler(req, res) {
         saved: true,
         commit: result.commit.sha,
         message: 'Website update GitHub par save hua. Vercel deployment successful hone ke baad sabko naya content dikhega.',
+      })
+    }
+
+    if (route === '/api/uploads' && req.method === 'POST') {
+      const credentials = await requireAdmin(req)
+      if (!credentials) return respond(res, 401, { error: 'Admin login required.' })
+      const image = parseUploadedImage(req.body?.type, req.body?.data)
+      if (!image) {
+        return respond(res, 400, { error: 'Upload a JPG, PNG, or WebP photo no larger than 3 MB.' })
+      }
+      const filename = `${crypto.randomUUID()}.${image.extension}`
+      const result = await commitGithubFile(
+        `public/uploads/${filename}`,
+        image.data.toString('base64'),
+        'Upload dental team photo',
+        undefined,
+        'base64',
+      )
+      if (!result.content?.sha) throw new Error('GitHub did not confirm the photo upload.')
+      return respond(res, 200, {
+        imageUrl: `/uploads/${filename}`,
+        message: 'Photo uploaded. Save website details to apply it to the team page.',
       })
     }
 

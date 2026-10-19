@@ -20,6 +20,9 @@
     },
     "api/content.js": {
       "maxDuration": 10
+    },
+    "api/uploads.js": {
+      "maxDuration": 10
     }
   },
   "rewrites": [

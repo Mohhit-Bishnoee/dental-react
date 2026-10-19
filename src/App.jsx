@@ -39,6 +39,7 @@ import {
   logoutAdmin,
   saveSiteContent,
   subscribeSiteContent,
+  uploadTeamImage,
 } from './api.js'
 
 const currentYear = new Date().getFullYear()
@@ -210,7 +211,7 @@ function Header({ content, isAdmin, onLogout }) {
           <NavLink onClick={closeMenu} to="/about" className={navClass}>About us</NavLink>
           <NavLink onClick={closeMenu} to="/team" className={navClass}>Our team</NavLink>
           <NavLink onClick={closeMenu} to="/contact" className={navClass}>Contact</NavLink>
-          <NavLink onClick={closeMenu} to="/admin" className={navClass}>{isAdmin ? 'Admin panel' : 'Admin login'}</NavLink>
+          {isAdmin && <NavLink onClick={closeMenu} to="/admin" className={navClass}>Admin panel</NavLink>}
           {isAdmin && <button type="button" onClick={onLogout} className="text-left text-sm text-[#526176] hover:text-[#168e84]">Log out</button>}
           <Link
             onClick={closeMenu}
@@ -524,7 +525,7 @@ function ContactPage({ content }) {
   )
 }
 
-function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePassword }) {
+function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePassword, onUploadImage }) {
   const [draft, setDraft] = useState(content)
   const [previousContent, setPreviousContent] = useState(content)
   const [email, setEmail] = useState('')
@@ -534,6 +535,7 @@ function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePasswo
   const [confirmPassword, setConfirmPassword] = useState('')
   const [notice, setNotice] = useState('')
   const [noticeIsError, setNoticeIsError] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(-1)
 
   if (content !== previousContent) {
     setPreviousContent(content)
@@ -547,6 +549,27 @@ function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePasswo
         personIndex === index ? { ...person, [key]: value } : person,
       ),
     }))
+  }
+
+  async function handleImageUpload(index, file) {
+    if (!file) return
+    if (file.size > 3 * 1024 * 1024) {
+      setNotice('Photo file 3 MB se chhoti honi chahiye.')
+      setNoticeIsError(true)
+      return
+    }
+    setUploadingImage(index)
+    try {
+      const result = await onUploadImage(file)
+      updatePerson(index, 'image', result.imageUrl)
+      setNotice('Photo upload ho gayi. Website details save karein.')
+      setNoticeIsError(false)
+    } catch (error) {
+      setNotice(error.message || 'Photo upload nahi ho saki.')
+      setNoticeIsError(true)
+    } finally {
+      setUploadingImage(-1)
+    }
   }
 
   async function handleLogin(event) {
@@ -618,13 +641,13 @@ function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePasswo
             <form onSubmit={handleSave} className="mt-8 space-y-8 rounded-3xl bg-white p-6 shadow-sm sm:p-8">
               <section>
                 <h2 className="text-xl font-semibold text-[#142945]">Doctors / team</h2>
-                <p className="mt-1 text-sm text-slate-500">Photo ke liye publicly accessible image URL paste karein.</p>
+                <p className="mt-1 text-sm text-slate-500">Apne device se JPG, PNG ya WebP photo upload karein (max 3 MB).</p>
                 <div className="mt-5 space-y-5">
                   {draft.team.map((person, index) => (
                     <div key={index} className="grid gap-4 rounded-2xl border border-slate-100 p-4 sm:grid-cols-2">
                       <label className="text-xs font-semibold text-[#34465d]">Doctor name<input required value={person.name} onChange={(event) => updatePerson(index, 'name', event.target.value)} className="form-field mt-2" /></label>
                       <label className="text-xs font-semibold text-[#34465d]">Role / specialty<input required value={person.role} onChange={(event) => updatePerson(index, 'role', event.target.value)} className="form-field mt-2" /></label>
-                      <label className="text-xs font-semibold text-[#34465d] sm:col-span-2">Photo URL<input required type="url" value={person.image} onChange={(event) => updatePerson(index, 'image', event.target.value)} className="form-field mt-2" /></label>
+                      <label className="text-xs font-semibold text-[#34465d] sm:col-span-2">Doctor photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => handleImageUpload(index, event.target.files?.[0])} disabled={uploadingImage === index} className="form-field mt-2 file:mr-4 file:rounded-full file:border-0 file:bg-[#e5f5f0] file:px-4 file:py-2 file:text-xs file:font-semibold file:text-[#176b62]" />{uploadingImage === index && <span className="mt-2 block text-xs text-slate-500">Uploading photo...</span>}</label>
                       <img src={person.image} alt="" className="h-32 w-28 rounded-xl object-cover object-top" />
                     </div>
                   ))}
@@ -731,7 +754,7 @@ function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/team" element={<TeamPage content={content} />} />
           <Route path="/contact" element={<ContactPage content={content} />} />
-          <Route path="/admin" element={<AdminPage content={content} onSave={saveContent} isAdmin={isAdmin} onLogin={login} onLogout={logout} onChangePassword={changeAdminPassword} />} />
+          <Route path="/admin" element={<AdminPage content={content} onSave={saveContent} isAdmin={isAdmin} onLogin={login} onLogout={logout} onChangePassword={changeAdminPassword} onUploadImage={uploadTeamImage} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

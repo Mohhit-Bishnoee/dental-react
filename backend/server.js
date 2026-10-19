@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import Database from 'better-sqlite3'
+import { parseUploadedImage } from '../serverless/image.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
@@ -56,7 +57,7 @@ if (!existingAdmin) {
 const app = express()
 app.disable('x-powered-by')
 app.set('trust proxy', isProduction ? 1 : false)
-app.use(express.json({ limit: '100kb' }))
+app.use(express.json({ limit: '5mb' }))
 
 const getAdmin = db.prepare('SELECT email, salt, password_hash, session_version FROM admin_account WHERE email = ?')
 const saveAdminPassword = db.prepare('UPDATE admin_account SET salt = ?, password_hash = ?, session_version = session_version + 1 WHERE email = ?')
@@ -258,7 +259,21 @@ app.put('/api/content', requireSameOrigin, requireAdmin, (req, res) => {
   res.json({ saved: true })
 })
 
+app.post('/api/uploads', requireSameOrigin, requireAdmin, (req, res) => {
+  const { type, data } = req.body || {}
+  const image = parseUploadedImage(type, data)
+  if (!image) {
+    return res.status(400).json({ error: 'Upload a JPG, PNG, or WebP photo no larger than 3 MB.' })
+  }
+  const filename = `${crypto.randomUUID()}.${image.extension}`
+  const uploadDirectory = path.join(rootDir, 'public', 'uploads')
+  fs.mkdirSync(uploadDirectory, { recursive: true })
+  fs.writeFileSync(path.join(uploadDirectory, filename), image.data, { flag: 'wx' })
+  res.json({ imageUrl: `/uploads/${filename}` })
+})
+
 if (isProduction) {
+  app.use('/uploads', express.static(path.join(rootDir, 'public', 'uploads')))
   app.use(express.static(path.join(rootDir, 'dist')))
   app.get('*path', (_req, res) => res.sendFile(path.join(rootDir, 'dist', 'index.html')))
 }

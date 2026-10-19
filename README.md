@@ -29,7 +29,7 @@ React + Vite site with Vercel serverless admin endpoints. Production content is 
 3. Redeploy the latest Vercel deployment after all variables are set.
 4. Check `https://<your-domain>/api/health` returns `{"ok":true}` and open `https://<your-domain>/admin`.
 5. Sign in with `mansi.s0824@gmail.com` and the initial password. The first successful login writes the encrypted password record to `.admin/admin-password.enc.json` in the repository.
-6. Save doctor names, roles, public photo URLs, phone, email, address, and opening hours. The API commits updates to `public/site-content.json`; that GitHub commit automatically starts a Vercel deployment. Visitors see the content once Vercel finishes deploying.
+6. In the admin dashboard, choose a JPG, PNG, or WebP photo up to 3 MB from the device. The API commits the image under `public/uploads/`; then save the team and contact details to `public/site-content.json`. Each GitHub commit automatically starts a Vercel deployment. Visitors see the changes once Vercel finishes deploying.
 
 This uses GitHub repository files as storage, not a database. Public content is read from the repository's raw file endpoint; admin login and saves require the configured GitHub token and secrets. A successful edit creates a source commit and triggers a deployment; a live update is therefore subject to the Vercel build/deployment time, not guaranteed instant. Admin password changes are AES-256-GCM encrypted with `ADMIN_PASSWORD_ENCRYPTION_KEY` before the encrypted record is committed. Keep the GitHub token and both keys private. If any of these Vercel variables change or are lost, existing encrypted admin credentials may no longer be readable.
 
