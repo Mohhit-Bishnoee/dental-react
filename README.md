@@ -1,34 +1,41 @@
 # Everwell Dental
 
-React + Vite frontend with a Node/Express API, SQLite persistence, and live Server-Sent Events (SSE). Admin edits are stored centrally and pushed to connected public pages.
+React + Vite site with Vercel serverless admin endpoints. Production content is stored as a JSON file in the GitHub repository, not in a database. Saving a change commits that file to GitHub; Vercel's Git integration then builds and deploys the new version. Connected public pages poll for updates every ten seconds.
 
-## Local setup
+## Configure local development
 
 1. Copy `.env.example` to `.env.local`.
-2. Set `ADMIN_EMAIL` to the single admin email and set `ADMIN_INITIAL_PASSWORD` to the chosen initial password. This password is server-side only and is never bundled into the frontend.
-3. Run `npm install` and `npm run dev`. The command starts the frontend and API together.
-4. Open the Vite URL shown in the terminal and use its **Admin login** link. There is no signup route.
-5. Save the doctor names, roles, publicly accessible photo URLs, phone, email, address, and hours. All visitors then receive updates live.
+2. Set `ADMIN_INITIAL_PASSWORD` to the initial password. The only accepted admin email is `mansi.s0824@gmail.com`.
+3. Create a GitHub fine-grained access token restricted to this repository with **Contents: Read and write** permission. Put it in `GITHUB_CONTENT_TOKEN`; do not commit or expose the token.
+4. Generate two different 32-byte (64 hex-character) keys:
 
-The first server start creates a SQLite database at `backend/data/site.sqlite`; the database and password hash are excluded from git. Admin sessions use random, revocable server-side tokens. The initial admin email/password environment values are used only when the database has no admin account. Changing the password from the dashboard updates the server-side hash and invalidates other sessions.
+   ```sh
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+   ```
 
-## Production hosting (Render)
+   Use one for `SESSION_SECRET` and the other for `ADMIN_PASSWORD_ENCRYPTION_KEY`.
+5. Run `npm install` and `npm run dev`. Local development uses the local Express API and SQLite database.
 
-`render.yaml` defines a Node web service, HTTPS-ready production settings, a health check, and a persistent disk for SQLite. To publish:
+## Set up Vercel production
 
-1. Push this repository to GitHub and connect it in the Render dashboard using **New → Blueprint**.
-2. Confirm the `everwell-dental` web service and persistent disk. The Starter plan is required for a persistent disk.
-3. When Render prompts for `ADMIN_INITIAL_PASSWORD`, enter the initial password privately in Render's environment-variable setup; do not commit it or add it to the browser app.
-4. Deploy and wait for the `/api/health` check to pass. Render builds the frontend and starts the API in the same Node service.
-5. Open `https://<your-render-service>.onrender.com/admin`, sign in with the configured admin email and initial password, then edit and save the site content.
+1. Ensure the Vercel project is connected to this GitHub repository and uses the `main` production branch. Set the Vercel project's **Root Directory** to the repository root.
+2. Open **Vercel → Project → Settings → Environment Variables**. Add each variable below for **Production** (and Preview only if you need preview deployments):
+   - `GITHUB_CONTENT_TOKEN`: GitHub fine-grained token restricted to `Mohhit-Bishnoee/dental-react`, with repository **Contents: Read and write** permission.
+   - `GITHUB_REPOSITORY`: `Mohhit-Bishnoee/dental-react`
+   - `GITHUB_BRANCH`: `main`
+   - `ADMIN_INITIAL_PASSWORD`: the initial admin password, entered privately in Vercel.
+   - `SESSION_SECRET`: a random 64-character hexadecimal secret.
+   - `ADMIN_PASSWORD_ENCRYPTION_KEY`: a different random 64-character hexadecimal key.
+3. Redeploy the latest Vercel deployment after all variables are set.
+4. Check `https://<your-domain>/api/health` returns `{"ok":true}` and open `https://<your-domain>/admin`.
+5. Sign in with `mansi.s0824@gmail.com` and the initial password. The first successful login writes the encrypted password record to `.admin/admin-password.enc.json` in the repository.
+6. Save doctor names, roles, public photo URLs, phone, email, address, and opening hours. The API commits updates to `public/site-content.json`; that GitHub commit automatically starts a Vercel deployment. Visitors see the content once Vercel finishes deploying.
 
-The SQLite database is stored on `/var/data/site.sqlite`, which is mounted from the persistent disk so edits and password changes survive redeploys. Render provides HTTPS, so production session cookies are Secure, HttpOnly, and SameSite=Strict.
+This uses GitHub repository files as storage, not a database. A successful edit creates a source commit and triggers a deployment; a live update is therefore subject to the Vercel build/deployment time, not guaranteed instant. Admin password changes are AES-256-GCM encrypted with `ADMIN_PASSWORD_ENCRYPTION_KEY` before the encrypted record is committed. Keep the GitHub token and both keys private. If any of these Vercel variables change or are lost, existing encrypted admin credentials may no longer be readable.
 
-Actual cloud publication must be initiated from an account with access to this GitHub repository and Render. A static-only host cannot run the API or persist edits.
+There is no public signup. Doctor photos must use publicly accessible image URLs. Passwords and GitHub tokens are never placed in the frontend bundle.
 
-The frontend only accepts the single admin account configured by `ADMIN_EMAIL`; there is no public signup. Admin can update the password after signing in. Doctor photos are entered as public image URLs; uploading image files is not included.
-
-## Checks
+## Validation
 
 ```sh
 npm run lint

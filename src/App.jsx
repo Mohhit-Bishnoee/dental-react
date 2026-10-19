@@ -565,8 +565,8 @@ function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePasswo
   async function handleSave(event) {
     event.preventDefault()
     try {
-      await onSave(draft)
-      setNotice('Changes save ho gaye. Sabhi visitors ko live dikh rahe hain.')
+      const result = await onSave(draft)
+      setNotice(result.message || 'Changes live website par update ho gaye.')
       setNoticeIsError(false)
     } catch (error) {
       console.error('Could not save site content:', error)
@@ -589,7 +589,7 @@ function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePasswo
     }
     try {
       await onChangePassword(currentPassword, newPassword)
-      setNotice('Admin password server par update ho gaya.')
+      setNotice('Admin password securely update ho gaya.')
       setNoticeIsError(false)
       setCurrentPassword('')
       setNewPassword('')
@@ -706,8 +706,9 @@ function App() {
   }, [])
 
   async function saveContent(updatedContent) {
-    await saveSiteContent(updatedContent)
+    const result = await saveSiteContent(updatedContent)
     setContent(updatedContent)
+    return result
   }
 
   async function login(email, enteredPassword) {

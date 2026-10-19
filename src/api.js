@@ -46,15 +46,33 @@ export function saveSiteContent(content) {
 }
 
 export function subscribeSiteContent(onContent, onError) {
-  const source = new EventSource('/api/content/events')
-  source.addEventListener('content', (event) => {
+  let active = true
+  let requestInFlight = false
+  let lastValue = ''
+  let reportedError = false
+
+  async function refresh() {
+    if (!active || requestInFlight) return
+    requestInFlight = true
     try {
-      const content = JSON.parse(event.data)
-      if (content) onContent(content)
+      const content = await getSiteContent()
+      const serialized = JSON.stringify(content)
+      if (active && content && serialized !== lastValue) {
+        lastValue = serialized
+        onContent(content)
+      }
+      reportedError = false
     } catch (error) {
-      onError(error)
+      if (!reportedError) onError(error)
+      reportedError = true
+    } finally {
+      requestInFlight = false
     }
-  })
-  source.onerror = () => onError(new Error('Live connection temporarily disconnected.'))
-  return () => source.close()
+  }
+
+  const interval = window.setInterval(refresh, 10000)
+  return () => {
+    active = false
+    window.clearInterval(interval)
+  }
 }
