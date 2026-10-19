@@ -9,10 +9,12 @@ import {
   CheckCircle2,
   Clock3,
   Heart,
+  KeyRound,
   Mail,
   MapPin,
   Menu,
   Phone,
+  Save,
   ScanFace,
   ShieldCheck,
   Smile,
@@ -20,6 +22,7 @@ import {
   Stethoscope,
   Users,
   X,
+  LogOut,
 } from 'lucide-react'
 import {
   Link,
@@ -28,8 +31,18 @@ import {
   Routes,
   useLocation,
 } from 'react-router-dom'
+import {
+  changeAdminPassword,
+  getAdminSession,
+  getSiteContent,
+  loginAdmin,
+  logoutAdmin,
+  saveSiteContent,
+  subscribeSiteContent,
+} from './api.js'
 
 const currentYear = new Date().getFullYear()
+const adminEmail = 'mansi.s0824@gmail.com'
 
 const clinicImage =
   'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=1400&q=85'
@@ -106,6 +119,16 @@ const team = [
   },
 ]
 
+const defaultContent = {
+  team,
+  contact: {
+    phone: '(212) 555-0148',
+    email: 'hello@everwelldental.com',
+    address: '128 Willow Lane, Brooklyn, NY 11201',
+    hours: 'Mon – Fri, 8:00 am – 6:00 pm',
+  },
+}
+
 function ScrollToTop() {
   const location = useLocation()
 
@@ -142,7 +165,7 @@ function Logo({ light = false }) {
   )
 }
 
-function Header() {
+function Header({ content, isAdmin, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
   const navClass = ({ isActive }) =>
@@ -154,16 +177,16 @@ function Header() {
         <div className="mx-auto flex max-w-[1240px] items-center justify-between px-6 py-2.5">
           <p className="flex items-center gap-2">
             <MapPin size={13} className="text-[#58caba]" />
-            128 Willow Lane, Brooklyn, NY 11201
+            {content.contact.address}
           </p>
           <div className="flex items-center gap-6">
             <p className="flex items-center gap-2">
               <Clock3 size={13} className="text-[#58caba]" />
-              Mon – Fri, 8:00 am – 6:00 pm
+              {content.contact.hours}
             </p>
-            <a className="flex items-center gap-2 hover:text-white" href="tel:+12125550148">
+            <a className="flex items-center gap-2 hover:text-white" href={`tel:${content.contact.phone.replace(/[^\d+]/g, '')}`}>
               <Phone size={13} className="text-[#58caba]" />
-              (212) 555-0148
+              {content.contact.phone}
             </a>
           </div>
         </div>
@@ -188,6 +211,8 @@ function Header() {
           <NavLink onClick={closeMenu} to="/about" className={navClass}>About us</NavLink>
           <NavLink onClick={closeMenu} to="/team" className={navClass}>Our team</NavLink>
           <NavLink onClick={closeMenu} to="/contact" className={navClass}>Contact</NavLink>
+          <NavLink onClick={closeMenu} to="/admin" className={navClass}>{isAdmin ? 'Admin panel' : 'Admin login'}</NavLink>
+          {isAdmin && <button type="button" onClick={onLogout} className="text-left text-sm text-[#526176] hover:text-[#168e84]">Log out</button>}
           <Link
             onClick={closeMenu}
             to="/contact#appointment"
@@ -266,7 +291,7 @@ function ButtonLink({ to, children, secondary = false }) {
   )
 }
 
-function HomePage() {
+function HomePage({ content, isAdmin }) {
   return (
     <>
       <section className="bg-[#f7f8f5]">
@@ -284,10 +309,13 @@ function HomePage() {
               <Link to="/services" className="inline-flex items-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold text-[#142945] hover:text-[#168e84]">
                 Explore our care <ArrowRight size={16} />
               </Link>
+              <Link to="/admin" className="inline-flex items-center gap-2 rounded-full border border-[#d9e5e1] px-5 py-3.5 text-sm font-semibold text-[#526176] hover:border-[#4ac5b4] hover:text-[#168e84]">
+                {isAdmin ? 'Admin dashboard' : 'Admin login'} <KeyRound size={15} />
+              </Link>
             </div>
             <div className="mt-9 flex items-center gap-3">
               <div className="flex -space-x-2">
-                {team.map((person) => (
+                {content.team.map((person) => (
                   <img key={person.name} src={person.image} alt="" className="size-9 rounded-full border-2 border-[#f7f8f5] object-cover" />
                 ))}
               </div>
@@ -324,9 +352,9 @@ function HomePage() {
 
       <section className="mx-auto grid max-w-[1240px] gap-0 px-5 py-7 sm:grid-cols-3 sm:px-8">
         {[
-          { icon: Phone, title: 'Call our friendly team', detail: '(212) 555-0148', href: 'tel:+12125550148' },
-          { icon: Clock3, title: 'Clinic opening hours', detail: 'Mon – Fri, 8:00 am – 6:00 pm', href: '/contact' },
-          { icon: MapPin, title: 'Right around the corner', detail: '128 Willow Lane, Brooklyn', href: '/contact' },
+          { icon: Phone, title: 'Call our friendly team', detail: content.contact.phone, href: `tel:${content.contact.phone.replace(/[^\d+]/g, '')}` },
+          { icon: Clock3, title: 'Clinic opening hours', detail: content.contact.hours, href: '/contact' },
+          { icon: MapPin, title: 'Right around the corner', detail: content.contact.address, href: '/contact' },
         ].map(({ icon: Icon, title, detail, href }) => (
           <a key={title} href={href} className="flex items-center gap-4 border-b border-slate-100 py-5 last:border-0 sm:border-b-0 sm:border-r sm:px-5 sm:first:pl-0 sm:last:border-0">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Icon size={18} /></span>
@@ -428,7 +456,7 @@ function AboutPage() {
   )
 }
 
-function TeamPage() {
+function TeamPage({ content }) {
   return (
     <>
       <PageHero eyebrow="People behind your smile" title="A team who treats you like a person." text="Experienced, kind, and always happy to answer one more question. Meet the people looking after your smile." image="https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=1200&q=85" />
@@ -436,7 +464,7 @@ function TeamPage() {
         <div className="mx-auto max-w-[1160px]">
           <div className="mb-10"><SectionHeading eyebrow="Meet your care team" title="Good people. Gentle hands." text="We bring experience and a thoughtful approach to every visit. We can't wait to meet you." /></div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {team.map((person) => <article key={person.name} className="group overflow-hidden rounded-[22px] bg-[#f5f7f4]">
+            {content.team.map((person, index) => <article key={`${person.name}-${index}`} className="group overflow-hidden rounded-[22px] bg-[#f5f7f4]">
               <div className="h-[340px] overflow-hidden bg-[#e5ede8]"><img src={person.image} alt={person.name} loading="lazy" className="size-full object-cover object-top transition duration-700 group-hover:scale-[1.03]" /></div>
               <div className="p-5"><h3 className="text-lg font-semibold text-[#142945]">{person.name}</h3><p className="mt-1 text-sm text-slate-500">{person.role}</p><div className="mt-4 flex items-center gap-2 text-xs font-medium text-[#218f83]"><Check size={14} /> Here to make you feel at ease</div></div>
             </article>)}
@@ -448,7 +476,7 @@ function TeamPage() {
   )
 }
 
-function ContactPage() {
+function ContactPage({ content }) {
   const [submitted, setSubmitted] = useState(false)
 
   function handleSubmit(event) {
@@ -464,10 +492,10 @@ function ContactPage() {
           <div>
             <SectionHeading eyebrow="Come say hello" title="We’re just around the corner." text="Call us, drop by, or send a note. A real person from our team will be happy to help." />
             <div className="mt-8 space-y-5">
-              <a href="tel:+12125550148" className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 hover:border-[#a8dbd2]"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Phone size={18} /></span><span><span className="block text-xs text-slate-400">Give us a call</span><span className="mt-1 block text-sm font-semibold text-[#142945]">(212) 555-0148</span></span></a>
-              <a href="mailto:hello@everwelldental.com" className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 hover:border-[#a8dbd2]"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Mail size={18} /></span><span><span className="block text-xs text-slate-400">Send us a note</span><span className="mt-1 block text-sm font-semibold text-[#142945]">hello@everwelldental.com</span></span></a>
-              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><MapPin size={18} /></span><span><span className="block text-xs text-slate-400">Come on in</span><span className="mt-1 block text-sm font-semibold text-[#142945]">128 Willow Lane, Brooklyn, NY 11201</span></span></div>
-              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Clock3 size={18} /></span><span><span className="block text-xs text-slate-400">Clinic hours</span><span className="mt-1 block text-sm font-semibold text-[#142945]">Mon – Fri, 8:00 am – 6:00 pm</span></span></div>
+              <a href={`tel:${content.contact.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 hover:border-[#a8dbd2]"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Phone size={18} /></span><span><span className="block text-xs text-slate-400">Give us a call</span><span className="mt-1 block text-sm font-semibold text-[#142945]">{content.contact.phone}</span></span></a>
+              <a href={`mailto:${content.contact.email}`} className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4 hover:border-[#a8dbd2]"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Mail size={18} /></span><span><span className="block text-xs text-slate-400">Send us a note</span><span className="mt-1 block text-sm font-semibold text-[#142945]">{content.contact.email}</span></span></a>
+              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><MapPin size={18} /></span><span><span className="block text-xs text-slate-400">Come on in</span><span className="mt-1 block text-sm font-semibold text-[#142945]">{content.contact.address}</span></span></div>
+              <div className="flex items-center gap-4 rounded-2xl border border-slate-100 p-4"><span className="flex size-11 items-center justify-center rounded-full bg-[#eaf6f3] text-[#218f83]"><Clock3 size={18} /></span><span><span className="block text-xs text-slate-400">Clinic hours</span><span className="mt-1 block text-sm font-semibold text-[#142945]">{content.contact.hours}</span></span></div>
             </div>
           </div>
           <div id="appointment" className="scroll-mt-36 rounded-[24px] border border-slate-100 bg-white p-6 shadow-[0_22px_65px_-48px_rgba(20,41,69,0.4)] sm:p-9">
@@ -476,7 +504,7 @@ function ContactPage() {
               <div role="status" className="rounded-2xl bg-[#eaf6f3] p-6 text-center">
                 <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-white text-[#218f83]"><CheckCircle2 size={25} /></span>
                 <h3 className="mt-4 text-lg font-semibold text-[#142945]">Thanks for reaching out!</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">This demo isn’t connected to a booking inbox yet. Please call (212) 555-0148 to confirm your visit.</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">This demo isn’t connected to a booking inbox yet. Please call {content.contact.phone} to confirm your visit.</p>
                 <button type="button" onClick={() => setSubmitted(false)} className="mt-4 text-sm font-semibold text-[#188c80] hover:underline">Send another request</button>
               </div>
             ) : (
@@ -497,13 +525,152 @@ function ContactPage() {
   )
 }
 
-function Footer() {
+function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePassword }) {
+  const [draft, setDraft] = useState(content)
+  const [previousContent, setPreviousContent] = useState(content)
+  const [email, setEmail] = useState(adminEmail)
+  const [loginPassword, setLoginPassword] = useState('')
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [notice, setNotice] = useState('')
+  const [noticeIsError, setNoticeIsError] = useState(false)
+
+  if (content !== previousContent) {
+    setPreviousContent(content)
+    setDraft(content)
+  }
+
+  function updatePerson(index, key, value) {
+    setDraft((current) => ({
+      ...current,
+      team: current.team.map((person, personIndex) =>
+        personIndex === index ? { ...person, [key]: value } : person,
+      ),
+    }))
+  }
+
+  async function handleLogin(event) {
+    event.preventDefault()
+    try {
+      await onLogin(email, loginPassword)
+      setNotice('')
+      setNoticeIsError(false)
+    } catch (error) {
+      setNotice(error.message || 'Login nahi ho saka.')
+      setNoticeIsError(true)
+    }
+  }
+
+  async function handleSave(event) {
+    event.preventDefault()
+    try {
+      await onSave(draft)
+      setNotice('Changes save ho gaye. Sabhi visitors ko live dikh rahe hain.')
+      setNoticeIsError(false)
+    } catch (error) {
+      console.error('Could not save site content:', error)
+      setNotice(error.message || 'Save nahi ho saka. Backend connection check karein.')
+      setNoticeIsError(true)
+    }
+  }
+
+  async function handlePasswordChange(event) {
+    event.preventDefault()
+    if (newPassword.length < 8) {
+      setNotice('Naya password kam se kam 8 characters ka hona chahiye.')
+      setNoticeIsError(true)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setNotice('Naya password aur confirmation match nahi karte.')
+      setNoticeIsError(true)
+      return
+    }
+    try {
+      await onChangePassword(currentPassword, newPassword)
+      setNotice('Admin password server par update ho gaya.')
+      setNoticeIsError(false)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error) {
+      setNotice(error.message || 'Password update nahi ho saka.')
+      setNoticeIsError(true)
+    }
+  }
+
+  return (
+    <section className="bg-[#f5f7f4] px-5 py-14 sm:px-8 sm:py-20">
+      <div className="mx-auto max-w-[960px]">
+        <Eyebrow>Everwell administration</Eyebrow>
+        <h1 className="text-4xl font-semibold tracking-tight text-[#142945]">Admin {isAdmin ? 'dashboard' : 'login'}</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Server-secured admin login. Saved doctor and contact updates are shared live with all website visitors.</p>
+        {notice && <p role="status" className={`mt-5 rounded-xl p-3 text-sm ${noticeIsError ? 'bg-red-50 text-red-700' : 'bg-[#e5f5f0] text-[#176b62]'}`}>{notice}</p>}
+
+        {!isAdmin ? (
+          <form onSubmit={handleLogin} className="mt-8 max-w-lg rounded-3xl bg-white p-6 shadow-sm sm:p-8">
+            <label className="block text-xs font-semibold text-[#34465d]">Admin email<input required type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className="form-field mt-2" /></label>
+            <label className="mt-5 block text-xs font-semibold text-[#34465d]">Password<input required type="password" autoComplete="current-password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} className="form-field mt-2" /></label>
+            <button type="submit" className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#142945] px-6 py-3 text-sm font-semibold text-white hover:bg-[#20466e]">Sign in <ArrowRight size={16} /></button>
+          </form>
+        ) : (
+          <>
+            <form onSubmit={handleSave} className="mt-8 space-y-8 rounded-3xl bg-white p-6 shadow-sm sm:p-8">
+              <section>
+                <h2 className="text-xl font-semibold text-[#142945]">Doctors / team</h2>
+                <p className="mt-1 text-sm text-slate-500">Photo ke liye publicly accessible image URL paste karein.</p>
+                <div className="mt-5 space-y-5">
+                  {draft.team.map((person, index) => (
+                    <div key={index} className="grid gap-4 rounded-2xl border border-slate-100 p-4 sm:grid-cols-2">
+                      <label className="text-xs font-semibold text-[#34465d]">Doctor name<input required value={person.name} onChange={(event) => updatePerson(index, 'name', event.target.value)} className="form-field mt-2" /></label>
+                      <label className="text-xs font-semibold text-[#34465d]">Role / specialty<input required value={person.role} onChange={(event) => updatePerson(index, 'role', event.target.value)} className="form-field mt-2" /></label>
+                      <label className="text-xs font-semibold text-[#34465d] sm:col-span-2">Photo URL<input required type="url" value={person.image} onChange={(event) => updatePerson(index, 'image', event.target.value)} className="form-field mt-2" /></label>
+                      <img src={person.image} alt="" className="h-32 w-28 rounded-xl object-cover object-top" />
+                    </div>
+                  ))}
+                </div>
+              </section>
+              <section>
+                <h2 className="text-xl font-semibold text-[#142945]">Contact details</h2>
+                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                  {[
+                    ['phone', 'Phone number', 'tel'],
+                    ['email', 'Email address', 'email'],
+                    ['address', 'Clinic address', 'text'],
+                    ['hours', 'Opening hours', 'text'],
+                  ].map(([key, label, type]) => (
+                    <label key={key} className="text-xs font-semibold text-[#34465d]">{label}<input required type={type} value={draft.contact[key]} onChange={(event) => setDraft((current) => ({ ...current, contact: { ...current.contact, [key]: event.target.value } }))} className="form-field mt-2" /></label>
+                  ))}
+                </div>
+              </section>
+              <button type="submit" className="inline-flex items-center gap-2 rounded-full bg-[#142945] px-6 py-3 text-sm font-semibold text-white hover:bg-[#20466e]"><Save size={16} /> Save website details</button>
+            </form>
+
+            <form onSubmit={handlePasswordChange} className="mt-7 rounded-3xl bg-white p-6 shadow-sm sm:p-8">
+              <h2 className="flex items-center gap-2 text-xl font-semibold text-[#142945]"><KeyRound size={19} /> Change password</h2>
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                <label className="text-xs font-semibold text-[#34465d]">Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="form-field mt-2" /></label>
+                <label className="text-xs font-semibold text-[#34465d]">New password<input required type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="form-field mt-2" /></label>
+                <label className="text-xs font-semibold text-[#34465d]">Confirm password<input required type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="form-field mt-2" /></label>
+              </div>
+              <button type="submit" className="mt-5 rounded-full border border-slate-200 px-5 py-2.5 text-sm font-semibold text-[#142945] hover:bg-slate-50">Update password</button>
+              <button type="button" onClick={onLogout} className="ml-3 mt-5 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-[#526176] hover:bg-slate-50"><LogOut size={16} /> Log out</button>
+            </form>
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function Footer({ content }) {
   return (
     <footer className="bg-[#10223a] px-5 py-12 text-white sm:px-8">
       <div className="mx-auto grid max-w-[1240px] gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_0.7fr_0.8fr_1fr]">
         <div><Logo light /><p className="mt-4 max-w-xs text-[13px] leading-6 text-white/55">Thoughtful dental care, a softer touch, and a team that’s always happy to see you.</p></div>
         <div><p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/40">Explore</p><div className="grid gap-3 text-sm text-white/70"><Link to="/services" className="hover:text-[#75d4c6]">Our services</Link><Link to="/about" className="hover:text-[#75d4c6]">About Everwell</Link><Link to="/team" className="hover:text-[#75d4c6]">Meet the team</Link><Link to="/contact" className="hover:text-[#75d4c6]">Get in touch</Link></div></div>
-        <div><p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/40">Visit us</p><p className="text-sm leading-6 text-white/70">128 Willow Lane<br />Brooklyn, NY 11201</p><p className="mt-3 text-sm text-white/70">Mon – Fri, 8 am – 6 pm</p></div>
+        <div><p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/40">Visit us</p><p className="text-sm leading-6 text-white/70">{content.contact.address}</p><p className="mt-3 text-sm text-white/70">{content.contact.hours}</p><a className="mt-3 block text-sm text-white/70 hover:text-white" href={`tel:${content.contact.phone.replace(/[^\d+]/g, '')}`}>{content.contact.phone}</a><a className="mt-2 block text-sm text-white/70 hover:text-white" href={`mailto:${content.contact.email}`}>{content.contact.email}</a></div>
         <div><p className="mb-4 text-xs font-semibold uppercase tracking-[0.15em] text-white/40">Ready when you are</p><p className="mb-4 text-sm leading-6 text-white/70">Questions, checkups, new smiles — we’re here for all of it.</p><ButtonLink to="/contact#appointment">Book a visit</ButtonLink></div>
       </div>
       <div className="mx-auto mt-10 max-w-[1240px] border-t border-white/10 pt-5 text-xs text-white/40">© {currentYear} Everwell Dental. Made with care.</div>
@@ -516,21 +683,59 @@ function NotFoundPage() {
 }
 
 function App() {
+  const [content, setContent] = useState(defaultContent)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    getAdminSession()
+      .then((session) => { if (active) setIsAdmin(session.authenticated) })
+      .catch((error) => console.error('Could not check admin session:', error))
+    getSiteContent()
+      .then((savedContent) => {
+        if (active && savedContent && Array.isArray(savedContent.team) && savedContent.contact) setContent(savedContent)
+      })
+      .catch((error) => console.error('Could not load saved site content:', error))
+    const unsubscribe = subscribeSiteContent((savedContent) => {
+      if (Array.isArray(savedContent.team) && savedContent.contact) setContent(savedContent)
+    }, (error) => console.error('Live website updates disconnected:', error))
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [])
+
+  async function saveContent(updatedContent) {
+    await saveSiteContent(updatedContent)
+    setContent(updatedContent)
+  }
+
+  async function login(email, enteredPassword) {
+    await loginAdmin(email, enteredPassword)
+    setIsAdmin(true)
+  }
+
+  async function logout() {
+    await logoutAdmin()
+    setIsAdmin(false)
+  }
+
   return (
     <div className="min-h-screen bg-white font-sans text-[#142945]">
       <ScrollToTop />
-      <Header />
+      <Header content={content} isAdmin={isAdmin} onLogout={logout} />
       <main>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePage content={content} isAdmin={isAdmin} />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/about" element={<AboutPage />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/team" element={<TeamPage content={content} />} />
+          <Route path="/contact" element={<ContactPage content={content} />} />
+          <Route path="/admin" element={<AdminPage content={content} onSave={saveContent} isAdmin={isAdmin} onLogin={login} onLogout={logout} onChangePassword={changeAdminPassword} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
-      <Footer />
+      <Footer content={content} />
     </div>
   )
 }
