@@ -42,7 +42,6 @@ import {
 } from './api.js'
 
 const currentYear = new Date().getFullYear()
-const adminEmail = 'mansi.s0824@gmail.com'
 
 const clinicImage =
   'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?auto=format&fit=crop&w=1400&q=85'
@@ -528,7 +527,7 @@ function ContactPage({ content }) {
 function AdminPage({ content, onSave, isAdmin, onLogin, onLogout, onChangePassword }) {
   const [draft, setDraft] = useState(content)
   const [previousContent, setPreviousContent] = useState(content)
-  const [email, setEmail] = useState(adminEmail)
+  const [email, setEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
